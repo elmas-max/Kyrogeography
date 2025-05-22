@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Haritadan Şehir Bul - Gelişmiş Sürüm</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #1e1e2f;
+      color: #f0f0f0;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100vh;
+      filter: saturate(1.2) contrast(1.1);
+      transition: filter 0.3s ease;
+    }
+
+    #map:hover {
+      filter: saturate(1.3) contrast(1.2);
+    }
+
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: linear-gradient(135deg, rgba(40, 40, 60, 0.95) 0%, rgba(30, 30, 50, 0.95) 100%);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      font-size: 16px;
+      max-width: 320px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transform: translateY(0);
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    #info:hover {
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    #info h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #90cdf4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #info p {
+      margin: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #info strong {
+      color: #a0a0ff;
+      min-width: 60px;
+      display: inline-block;
+    }
+
+    .leaflet-control-zoom {
+      bottom: 80px !important;
+      top: auto !important;
+      right: 20px !important;
+      left: auto !important;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(30, 30, 50, 0.7);
+      backdrop-filter: blur(5px);
+    }
+
+    .leaflet-control-zoom a {
+      background-color: transparent;
+      color: #fff;
+      font-size: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background-color: rgba(90, 140, 244, 0.3);
+      color: #90cdf4;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      padding: 14px 0;
+      background: linear-gradient(to top, rgba(30, 30, 50, 0.95) 0%, transparent 100%);
+      text-align: center;
+      z-index: 1000;
+      color: #ccc;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-text {
+      font-weight: bold;
+      color: #90cdf4;
+      letter-spacing: 1px;
+      font-size: 16px;
+    }
+
+    .pulse {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-2px) scale(1.02); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
+    .loading-spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 500px) {
+      #info {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+      }
+      
+      footer {
+        padding: 10px 0;
+        font-size: 12px;
+      }
+      
+      .logo-text {
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="info" class="pulse">
+  <h2><i class="fas fa-map-marked-alt"></i> Şehir Bilgisi</h2>
+  <p><strong><i class="fas fa-info-circle"></i></strong> Haritaya tıklayarak şehir ismini ve hava durumunu öğrenebilirsin.</p>
+</div>
+
+<div class="map-container">
+  <div id="map"></div>
+</div>
+
+<footer>
+  <span class="logo-text">KyroGeography</span>
+  <span>Tıkla, Şehri Keşfet</span>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script>
+  const map = L.map('map', {
+    zoomControl: false,
+    preferCanvas: true
+  }).setView([39.0, 35.0], 6);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  L.control.zoom({ 
+    position: 'bottomright',
+    zoomInText: '<i class="fas fa-plus"></i>',
+    zoomOutText: '<i class="fas fa-minus"></i>'
+  }).addTo(map);
+
+  const infoDiv = document.getElementById('info');
+
+  const customIcon = L.divIcon({
+    className: 'custom-marker',
+    html: '<i class="fas fa-map-pin" style="color: #ff4757; font-size: 32px;"></i>',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32]
+  });
+
+  let currentMarker = null;
+
+  map.on('click', async function(e) {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    if (currentMarker) {
+      map.removeLayer(currentMarker);
+    }
+
+    currentMarker = L.marker([lat, lng], {
+      icon: customIcon,
+      riseOnHover: true
+    }).addTo(map);
+
+    currentMarker.setZIndexOffset(1000);
+    
+    infoDiv.innerHTML = `
+      <h2><i class="fas fa-spinner loading-spinner"></i> Konum alınıyor...</h2>
+      <p><strong><i class="fas fa-map-pin"></i> Koordinat:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+      <p><strong><i class="fas fa-clock"></i> Tarih:</strong> ${new Date().toLocaleString()}</p>
+    `;
+
+    try {
+      const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`;
+      const nominatimRes = await fetch(nominatimUrl);
+      const nominatimData = await nominatimRes.json();
+      const address = nominatimData.address;
+
+      const city = address.city || address.town || address.village || address.county || "Bilinmeyen Bölge";
+      const country = address.country || "Bilinmeyen Ülke";
+      const district = address.suburb || address.neighbourhood || address.road || "Bilinmeyen Semt";
+      
+      const mockWeather = getMockWeather(city);
+      
+      infoDiv.innerHTML = `
+        <h2><i class="fas fa-city"></i> ${city}</h2>
+        <p><strong><i class="fas fa-globe"></i> Ülke:</strong> ${country}</p>
+        <p><strong><i class="fas fa-map-marker-alt"></i> Bölge:</strong> ${district}</p>
+        <p><strong><i class="fas fa-compass"></i> Koordinat:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+        
+        <div class="weather-info">
+          <p><strong><i class="fas fa-cloud-sun"></i> Hava Durumu:</strong></p>
+          <p><i class="fas ${mockWeather.icon} weather-icon"></i> 
+            <span class="temperature">${mockWeather.temp}°C</span> 
+            ${mockWeather.description}</p>
+        </div>
+        
+        <p style="margin-top: 12px; font-size: 12px; opacity: 0.7;">
+          <i class="fas fa-sync-alt"></i> ${new Date().toLocaleTimeString()}
+        </p>
+      `;
+      
+      infoDiv.classList.remove('pulse');
+      void infoDiv.offsetWidth;
+      infoDiv.classList.add('pulse');
+      
+    } catch (err) {
+      console.error("Hata:", err);
+      infoDiv.innerHTML = `
+        <h2><i class="fas fa-exclamation-triangle"></i> Hata!</h2>
+        <p>Bilgi alınamadı. Lütfen tekrar deneyin.</p>
+        <p><strong>Koordinat:</strong> ${lat.toFixed(4)}, ${lng.toFixed(4)}</p>
+      `;
+    }
+  });
+
+  function getMockWeather(city) {
+    const weatherTypes = [
+      { icon: 'fa-sun', temp: (Math.random() * 15 + 15).toFixed(1), description: 'Açık ve güneşli' },
+      { icon: 'fa-cloud-sun', temp: (Math.random() * 10 + 10).toFixed(1), description: 'Parçalı bulutlu' },
+      { icon: 'fa-cloud', temp: (Math.random() * 8 + 8).toFixed(1), description: 'Bulutlu' },
+      { icon: 'fa-cloud-rain', temp: (Math.random() * 5 + 5).toFixed(1), description: 'Yağmurlu' },
+      { icon: 'fa-bolt', temp: (Math.random() * 10 + 10).toFixed(1), description: 'Gök gürültülü sağanak' }
+    ];
+    
+    const hash = city.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const weather = weatherTypes[hash % weatherTypes.length];
+    
+    return weather;
+  }
+
+  map.on('touchstart', function(e) {
+    if (e.originalEvent.touches.length === 1) {
+      map.once('touchend', function(ev) {
+        if (!map.dragging._dragging) {
+          map.fire('click', ev);
+        }
+      });
+    }
+  });
+
+  setTimeout(() => {
+    map.invalidateSize();
+    infoDiv.style.transform = 'translateY(0)';
+  }, 100);
+</script>
+</body>
+</html>
